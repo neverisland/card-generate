@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.tsbuildinfo
+dev-server*.log
+playwright-*.png
+temp_*.ts
+vite.config.js
+vite.config.d.ts
+.vite-dev.log
+AGENTS.md
+.idea/

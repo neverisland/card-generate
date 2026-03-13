@@ -1,0 +1,14 @@
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  color-scheme: light;
+}
+
+body,
+#root {
+  overflow: hidden;
+}
