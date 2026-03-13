@@ -13,6 +13,72 @@ const SECONDARY_FIELD_IDS = new Set(['social', 'address'])
 
 const sortByZIndex = (elements: CardElement[]) => [...elements].sort((left, right) => left.zIndex - right.zIndex)
 
+const clamp = (value: number, min: number, max: number) => {
+  if (max <= min) {
+    return min
+  }
+
+  return Math.min(Math.max(value, min), max)
+}
+
+const getContentSpan = (size: number, padding: number) => Math.max(size - padding * 2, 1)
+
+const remapCoordinate = (
+  value: number,
+  oldPadding: number,
+  oldSpan: number,
+  nextPadding: number,
+  nextSpan: number,
+) => nextPadding + ((value - oldPadding) / oldSpan) * nextSpan
+
+const adjustElementForPadding = (element: CardElement, document: CardDocument, nextPadding: number): CardElement => {
+  const currentPadding = document.meta.padding
+  const widthRatio = getContentSpan(document.meta.width, nextPadding) / getContentSpan(document.meta.width, currentPadding)
+  const heightRatio = getContentSpan(document.meta.height, nextPadding) / getContentSpan(document.meta.height, currentPadding)
+  const uniformRatio = Math.min(widthRatio, heightRatio)
+
+  const nextWidth =
+    element.type === 'qrcode'
+      ? Math.max(72, element.width * uniformRatio)
+      : Math.max(72, element.width * widthRatio)
+  const nextHeight =
+    element.type === 'qrcode'
+      ? Math.max(72, element.height * uniformRatio)
+      : Math.max(28, element.height * heightRatio)
+
+  const nextX = clamp(
+    remapCoordinate(
+      element.x,
+      currentPadding,
+      getContentSpan(document.meta.width, currentPadding),
+      nextPadding,
+      getContentSpan(document.meta.width, nextPadding),
+    ),
+    nextPadding,
+    document.meta.width - nextPadding - nextWidth,
+  )
+
+  const nextY = clamp(
+    remapCoordinate(
+      element.y,
+      currentPadding,
+      getContentSpan(document.meta.height, currentPadding),
+      nextPadding,
+      getContentSpan(document.meta.height, nextPadding),
+    ),
+    nextPadding,
+    document.meta.height - nextPadding - nextHeight,
+  )
+
+  return {
+    ...element,
+    x: nextX,
+    y: nextY,
+    width: nextWidth,
+    height: nextHeight,
+  }
+}
+
 export const normalizeElements = (elements: CardElement[]): CardElement[] =>
   sortByZIndex(elements).map((element, index) => ({
     ...element,
@@ -157,6 +223,23 @@ export const scaleDocumentToOrientation = (
           false,
         ),
       ),
+    ),
+  }
+}
+
+export const applyDocumentPadding = (document: CardDocument, nextPadding: number): CardDocument => {
+  if (nextPadding === document.meta.padding) {
+    return document
+  }
+
+  return {
+    ...document,
+    meta: {
+      ...document.meta,
+      padding: nextPadding,
+    },
+    elements: normalizeElements(
+      document.elements.map((element) => adjustElementForPadding(element, document, nextPadding)),
     ),
   }
 }

@@ -38,6 +38,14 @@ const drawRoundedRectPath = (context: ClipContext, width: number, height: number
   context.closePath()
 }
 
+const getFrameBackground = (document: CardDocument) => {
+  if (!document.meta.useGradient) {
+    return document.meta.backgroundColor
+  }
+
+  return `linear-gradient(135deg, ${document.meta.backgroundColor} 0%, #fff4e8 55%, ${document.meta.accentColor} 100%)`
+}
+
 export function CardCanvas({
   document,
   selectedId,
@@ -113,6 +121,17 @@ export function CardCanvas({
     return Math.min(horizontal, vertical, 1)
   }, [document.meta.height, document.meta.width, viewport.height, viewport.width])
 
+  const frameStyle = useMemo(
+    () => ({
+      width: document.meta.width * scale,
+      height: document.meta.height * scale,
+      borderRadius: Math.max(document.meta.cornerRadius * scale, 18),
+      overflow: 'hidden' as const,
+      background: getFrameBackground(document),
+    }),
+    [document, scale],
+  )
+
   const handleTransformEnd = (element: CardElement) => {
     const node = shapeRefs.current[element.id]
     if (!node) {
@@ -161,7 +180,7 @@ export function CardCanvas({
       </div>
 
       <div className="canvas-shell custom-scrollbar" ref={containerRef}>
-        <div className="canvas-frame" style={{ width: document.meta.width * scale, height: document.meta.height * scale }}>
+        <div className="canvas-frame" style={frameStyle}>
           <div style={{ width: document.meta.width, height: document.meta.height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
             <Stage
               ref={stageRef}
@@ -182,7 +201,6 @@ export function CardCanvas({
             >
               <Layer>
                 <Group clipFunc={(context) => drawRoundedRectPath(context as unknown as ClipContext, document.meta.width, document.meta.height, document.meta.cornerRadius)}>
-                  <Rect width={document.meta.width} height={document.meta.height} fill="#ffffff" name="background-node" />
                   <Rect width={document.meta.width} height={document.meta.height} fill={document.meta.backgroundColor} name="background-node" />
                   {document.meta.useGradient ? (
                     <Rect

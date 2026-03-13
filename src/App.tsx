@@ -5,6 +5,7 @@ import { ControlPanel } from './components/ControlPanel'
 import { Toolbar } from './components/Toolbar'
 import { createDefaultDocument } from './defaultDocument'
 import {
+  applyDocumentPadding,
   deleteElementFromDocument,
   loadStoredDocument,
   moveElementLayer,
@@ -105,17 +106,22 @@ function App() {
   }, [document.content.qrText, document.meta])
 
   const updateMeta = (changes: Partial<CardMeta>) => {
-    setDocument((current) => ({
-      ...current,
-      meta: {
-        ...current.meta,
-        ...changes,
-        themeId:
-          'backgroundColor' in changes || 'accentColor' in changes || 'useGradient' in changes
-            ? 'custom'
-            : current.meta.themeId,
-      },
-    }))
+    setDocument((current) => {
+      const nextDocument =
+        typeof changes.padding === 'number' ? applyDocumentPadding(current, changes.padding) : current
+
+      return {
+        ...nextDocument,
+        meta: {
+          ...nextDocument.meta,
+          ...changes,
+          themeId:
+            'backgroundColor' in changes || 'accentColor' in changes || 'useGradient' in changes
+              ? 'custom'
+              : nextDocument.meta.themeId,
+        },
+      }
+    })
   }
 
   const updateContent = (key: TextContentKey, value: string) => {
