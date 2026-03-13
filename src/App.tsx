@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import QRCode from 'qrcode'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type Konva from 'konva'
 import './App.css'
-import { CardCanvas } from './components/CardCanvas'
 import { ControlPanel } from './components/ControlPanel'
 import { Toolbar } from './components/Toolbar'
 import { createDefaultDocument } from './defaultDocument'
@@ -18,6 +16,9 @@ import { applyThemeToDocument, getQRCodePalette } from './themes'
 import type { CardDocument, CardElement, CardMeta, CardThemeId, ExportFormat, TextContentKey } from './types'
 
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+const CardCanvas = lazy(() =>
+  import('./components/CardCanvas').then((module) => ({ default: module.CardCanvas })),
+)
 
 function App() {
   const stageRef = useRef<Konva.Stage | null>(null)
@@ -54,6 +55,7 @@ function App() {
       const qrPalette = getQRCodePalette(document.meta)
 
       try {
+        const { default: QRCode } = await import('qrcode')
         const dataUrl = await QRCode.toDataURL(document.content.qrText, {
           margin: 1,
           width: 360,
@@ -171,17 +173,39 @@ function App() {
           onSelectElement={setSelectedId}
         />
 
-        <CardCanvas
-          document={document}
-          selectedId={selectedId}
-          qrCodeSrc={qrCodeSrc}
-          isExporting={isExporting}
-          stageRef={stageRef}
-          onSelect={setSelectedId}
-          onElementChange={updateElement}
-        />
+        <Suspense fallback={<CanvasLoadingFallback orientation={document.meta.orientation} />}>
+          <CardCanvas
+            document={document}
+            selectedId={selectedId}
+            qrCodeSrc={qrCodeSrc}
+            isExporting={isExporting}
+            stageRef={stageRef}
+            onSelect={setSelectedId}
+            onElementChange={updateElement}
+          />
+        </Suspense>
       </main>
     </div>
+  )
+}
+
+function CanvasLoadingFallback({ orientation }: { orientation: CardDocument['meta']['orientation'] }) {
+  return (
+    <section className="canvas-panel canvas-panel-loading">
+      <div className="canvas-meta">
+        <div>
+          <span className="canvas-badge">实时预览</span>
+          <h2>{orientation === 'landscape' ? '横版名片' : '竖版名片'}</h2>
+        </div>
+        <p>正在加载画布...</p>
+      </div>
+
+      <div className="canvas-shell">
+        <div className="canvas-loading-card">
+          <div className="canvas-loading-shimmer" />
+        </div>
+      </div>
+    </section>
   )
 }
 
