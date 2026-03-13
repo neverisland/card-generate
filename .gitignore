@@ -9,3 +9,4 @@ vite.config.d.ts
 .vite-dev.log
 AGENTS.md
 .idea/
+package-lock.json
