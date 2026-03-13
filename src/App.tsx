@@ -16,9 +16,12 @@ import { applyThemeToDocument, getQRCodePalette } from './themes'
 import type { CardDocument, CardElement, CardMeta, CardThemeId, ExportFormat, TextContentKey } from './types'
 
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+const MOBILE_LAYOUT_QUERY = '(max-width: 720px)'
 const CardCanvas = lazy(() =>
   import('./components/CardCanvas').then((module) => ({ default: module.CardCanvas })),
 )
+
+type MobileWorkspaceView = 'preview' | 'editor'
 
 function App() {
   const stageRef = useRef<Konva.Stage | null>(null)
@@ -26,12 +29,32 @@ function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [qrCodeSrc, setQrCodeSrc] = useState<string | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [isMobileLayout, setIsMobileLayout] = useState(() => window.matchMedia(MOBILE_LAYOUT_QUERY).matches)
+  const [activeMobileView, setActiveMobileView] = useState<MobileWorkspaceView>('preview')
 
   const selectedElement = document.elements.find((element) => element.id === selectedId) ?? null
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(document))
   }, [document])
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(MOBILE_LAYOUT_QUERY)
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsMobileLayout(event.matches)
+    }
+
+    setIsMobileLayout(mediaQuery.matches)
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
+
+  useEffect(() => {
+    if (!isMobileLayout) {
+      setActiveMobileView('preview')
+    }
+  }, [isMobileLayout])
 
   useEffect(() => {
     if (!selectedId) {
@@ -140,6 +163,14 @@ function App() {
     }
   }
 
+  const handleSelectElement = (elementId: string | null) => {
+    setSelectedId(elementId)
+
+    if (isMobileLayout && elementId) {
+      setActiveMobileView('editor')
+    }
+  }
+
   return (
     <div className="app-shell">
       <Toolbar
@@ -155,35 +186,62 @@ function App() {
         onExport={(format) => void handleExport(format)}
       />
 
-      <main className="workspace">
-        <ControlPanel
-          document={document}
-          selectedElement={selectedElement}
-          onContentChange={updateContent}
-          onMetaChange={updateMeta}
-          onApplyTheme={applyTheme}
-          onElementChange={updateElement}
-          onDeleteElement={(elementId) => {
-            setDocument((current) => deleteElementFromDocument(current, elementId))
-            setSelectedId(null)
-          }}
-          onMoveLayer={(elementId, direction) =>
-            setDocument((current) => moveElementLayer(current, elementId, direction))
-          }
-          onSelectElement={setSelectedId}
-        />
+      {isMobileLayout ? (
+        <div className="workspace-tabs segmented-control full-width" aria-label="移动端视图切换">
+          <button
+            type="button"
+            className={activeMobileView === 'preview' ? 'active' : ''}
+            onClick={() => setActiveMobileView('preview')}
+          >
+            预览
+          </button>
+          <button
+            type="button"
+            className={activeMobileView === 'editor' ? 'active' : ''}
+            onClick={() => setActiveMobileView('editor')}
+          >
+            编辑
+          </button>
+        </div>
+      ) : null}
 
-        <Suspense fallback={<CanvasLoadingFallback orientation={document.meta.orientation} />}>
-          <CardCanvas
+      <main className={`workspace ${isMobileLayout ? 'is-mobile-layout' : ''}`}>
+        <div
+          className={`workspace-pane workspace-pane-editor ${isMobileLayout && activeMobileView !== 'editor' ? 'workspace-pane-hidden' : ''}`}
+        >
+          <ControlPanel
             document={document}
-            selectedId={selectedId}
-            qrCodeSrc={qrCodeSrc}
-            isExporting={isExporting}
-            stageRef={stageRef}
-            onSelect={setSelectedId}
+            selectedElement={selectedElement}
+            onContentChange={updateContent}
+            onMetaChange={updateMeta}
+            onApplyTheme={applyTheme}
             onElementChange={updateElement}
+            onDeleteElement={(elementId) => {
+              setDocument((current) => deleteElementFromDocument(current, elementId))
+              setSelectedId(null)
+            }}
+            onMoveLayer={(elementId, direction) =>
+              setDocument((current) => moveElementLayer(current, elementId, direction))
+            }
+            onSelectElement={handleSelectElement}
           />
-        </Suspense>
+        </div>
+
+        <div
+          className={`workspace-pane workspace-pane-preview ${isMobileLayout && activeMobileView !== 'preview' ? 'workspace-pane-hidden' : ''}`}
+        >
+          <Suspense fallback={<CanvasLoadingFallback orientation={document.meta.orientation} />}>
+            <CardCanvas
+              document={document}
+              selectedId={selectedId}
+              qrCodeSrc={qrCodeSrc}
+              isExporting={isExporting}
+              stageRef={stageRef}
+              onSelect={handleSelectElement}
+              onElementChange={updateElement}
+            />
+          </Suspense>
+        </div>
       </main>
     </div>
   )

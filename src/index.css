@@ -12,3 +12,10 @@ body,
 #root {
   overflow: hidden;
 }
+
+@media (max-width: 720px) {
+  body,
+  #root {
+    overflow: auto;
+  }
+}

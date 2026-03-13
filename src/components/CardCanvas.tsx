@@ -107,8 +107,9 @@ export function CardCanvas({
       return 1
     }
 
-    const horizontal = (viewport.width - 32) / document.meta.width
-    const vertical = (viewport.height - 32) / document.meta.height
+    const viewportInset = viewport.width <= 720 ? 16 : 32
+    const horizontal = (viewport.width - viewportInset) / document.meta.width
+    const vertical = (viewport.height - viewportInset) / document.meta.height
     return Math.min(horizontal, vertical, 1)
   }, [document.meta.height, document.meta.width, viewport.height, viewport.width])
 
